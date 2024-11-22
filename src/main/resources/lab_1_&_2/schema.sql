@@ -152,8 +152,3 @@ CREATE TABLE tags
     video_id INT NOT NULL,
     FOREIGN KEY (video_id) REFERENCES videos (video_id)
 );
-
-CREATE TABLE groups
-(
-    group_id  SERIAL NOT NULL UNIQUE
-);

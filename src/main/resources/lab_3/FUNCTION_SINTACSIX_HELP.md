@@ -1,110 +1,204 @@
-Давайте разберем синтаксис **PL/pgSQL** (процедурный язык PostgreSQL) на примере первой функции **`generate_user_notifications`**. Эта функция создает уведомления для пользователей на основе их последней активности.
+Давайте разберем синтаксис **PL/pgSQL** (процедурный язык PostgreSQL) на примере трех функций: **`check_password_security`**, **`check_user_age`** и **`check_email_format`**.
 
 ---
 
-### 1. **Объявление функции**
+## I. Проверка безопасности пароля
 
 ```sql
-CREATE OR REPLACE FUNCTION generate_user_notifications()
-    RETURNS TABLE
-            (
-                user_id           INT,
-                notification_text TEXT
-            )
-```
-
-- **`CREATE OR REPLACE FUNCTION`**: Создает функцию или заменяет ее, если она уже существует.
-- **`RETURNS TABLE`**: Указывает, что функция возвращает таблицу с колонками `user_id` (тип INT) и `notification_text` (тип TEXT).
-
----
-
-### 2. **Блок кода функции**
-
-```sql
-AS
+CREATE OR REPLACE FUNCTION check_password_security(password TEXT)
+    RETURNS TEXT AS
 $$
 DECLARE
-    last_action RECORD;
+    has_uppercase BOOLEAN;
+    has_lowercase BOOLEAN;
+    has_digit     BOOLEAN;
+    has_special   BOOLEAN;
+    result        TEXT := 'Проблемы с паролем: ';
 BEGIN
-    ...
+    has_uppercase := password ~ '[A-Z]';
+    has_lowercase := password ~ '[a-z]';
+    has_digit := password ~ '[0-9]';
+    has_special := password ~ '[!@#$%^&*(),.?":{}|<>]';
+    -- проверки пароля...
+    RETURN TRIM(TRAILING '; ' FROM result);
 END;
 $$ LANGUAGE plpgsql;
 ```
 
-- **`AS $$ ... $$`**: Начало и конец тела функции.
-- **`DECLARE`**: Блок для объявления переменных. Здесь `last_action` используется для хранения строк из цикла.
-- **`BEGIN ... END;`**: Основной блок выполнения функции.
-- **`LANGUAGE plpgsql`**: Указывает, что используется процедурный язык PL/pgSQL.
-
----
-
-### 3. **Цикл для формирования уведомлений**
+### 1. **Объявление функции**
 
 ```sql
-FOR last_action IN
-    SELECT u.id    AS user_id,
-           CASE
-               WHEN MAX(vh.created_at) > MAX(c.created_at) AND MAX(vh.created_at) > MAX(vl.created_at) THEN
-                   CONCAT('You recently watched the video: ', v.title)
-               WHEN MAX(c.created_at) > MAX(vh.created_at) AND MAX(c.created_at) > MAX(vl.created_at) THEN
-                   CONCAT('You recently commented: "', c.content, '"')
-               WHEN MAX(vl.created_at) > MAX(vh.created_at) AND MAX(vl.created_at) > MAX(c.created_at) THEN
-                   'You recently liked a video'
-               ELSE
-                   'No recent activity'
-               END AS notification_text
-    FROM users u
-             LEFT JOIN
-         user_history vh ON u.id = vh.user_id
-             LEFT JOIN
-         comments c ON u.id = c.user_id
-             LEFT JOIN
-         video_likes vl ON u.id = vl.user_id
-    GROUP BY u.id
-LOOP
-    RETURN NEXT last_action;
-END LOOP;
+CREATE OR REPLACE FUNCTION check_password_security(password TEXT)
+    RETURNS TEXT AS
+$$
 ```
 
-- **`FOR ... IN`**: Цикл, который перебирает результат SQL-запроса построчно.
-- **`SELECT ... CASE`**: Основной запрос:
-    - **`CASE`**: Логика выбора текста уведомления:
-        - Если максимальная активность — просмотр видео, возвращается текст с названием видео.
-        - Если комментарий — возвращается текст с содержанием комментария.
-        - Если лайк — фиксированный текст.
-        - Если активности нет — возвращается "No recent activity".
-    - **`MAX(vh.created_at)`**: Используется для определения самой поздней активности.
-    - **`LEFT JOIN`**: Присоединяет данные о просмотрах, комментариях и лайках.
-    - **`GROUP BY u.id`**: Группировка по пользователю, чтобы выбрать последнюю активность.
-- **`RETURN NEXT`**: Добавляет строку к результату функции.
+- **`CREATE OR REPLACE FUNCTION`**: Создает новую функцию или заменяет существующую с тем же именем.
+- **`RETURNS TEXT`**: Указывает, что функция возвращает результат типа `TEXT` — строку с описанием проблем с паролем.
+- **`password TEXT`**: Параметр функции, который принимает строку (пароль), тип данных — `TEXT`.
 
 ---
 
-### Ключевые особенности
+### 2. **Блок объявления переменных**
 
-1. **Динамическая логика в SQL:** Использование `CASE` внутри SQL для определения типа активности.
-2. **Работа с несколькими таблицами:** `LEFT JOIN` объединяет данные пользователей, просмотров, комментариев и лайков.
-3. **Процедурный стиль:** Логика не могла быть реализована в оконных функциях, так как здесь генерируется текст на основе сложной комбинации данных.
+```sql
+DECLARE
+    has_uppercase BOOLEAN;
+    has_lowercase BOOLEAN;
+    has_digit     BOOLEAN;
+    has_special   BOOLEAN;
+    result        TEXT := 'Проблемы с паролем: ';
+```
+
+- **`DECLARE`**: Блок для объявления локальных переменных, которые будут использоваться в теле функции.
+    - **`has_uppercase`**: Переменная типа `BOOLEAN`, проверяет наличие заглавных букв в пароле.
+    - **`has_lowercase`**: Переменная типа `BOOLEAN`, проверяет наличие строчных букв в пароле.
+    - **`has_digit`**: Переменная типа `BOOLEAN`, проверяет наличие цифр в пароле.
+    - **`has_special`**: Переменная типа `BOOLEAN`, проверяет наличие специальных символов.
+    - **`result`**: Переменная типа `TEXT`, которая хранит строку с проблемами пароля.
 
 ---
 
-### Аналогичная структура в других функциях
+### 3. **Основной блок**
 
-#### 2. `assign_ad_to_popular_video`
+```sql
+BEGIN
+    has_uppercase := password ~ '[A-Z]';
+    has_lowercase := password ~ '[a-z]';
+    has_digit := password ~ '[0-9]';
+    has_special := password ~ '[!@#$%^&*(),.?":{}|<>]';
+    -- дополнительные проверки
+    RETURN TRIM(TRAILING '; ' FROM result);
+END;
+```
 
-- **`DECLARE`**: Переменная `target_video_id` используется для хранения подходящего видео.
-- **`IF target_video_id IS NULL THEN ... END IF;`**: Проверяет, найдено ли подходящее видео.
-- **`RAISE EXCEPTION`**: Генерирует ошибку, если видео не найдено.
-- **`UPDATE`**: Назначает рекламу выбранному видео.
+- **`BEGIN ... END;`**: Начало и конец основного блока выполнения функции.
+- **`password ~ '[A-Z]'`**: Регулярное выражение для проверки наличия хотя бы одной заглавной буквы в пароле.
+- **`RETURN TRIM(TRAILING '; ' FROM result);`**: Возвращает строку с проблемами пароля, удаляя лишние символы в конце строки.
 
-#### 3. `update_channel_statistics`
+---
 
-- **`SELECT INTO`**: Используется для сохранения результата запроса в переменные `total_views` и `subscriber_count`.
-- **`COALESCE`**: Подставляет значение `0`, если данных нет.
+## II. Проверка возраста пользователя
 
-#### 4. `get_top_active_user_by_month`
+```sql
+CREATE OR REPLACE FUNCTION check_user_age(birth_date DATE, min_age INT DEFAULT 18)
+    RETURNS TEXT AS
+$$
+DECLARE
+    age INT;
+BEGIN
+    age := DATE_PART('year', AGE(CURRENT_DATE, birth_date));
+    IF age >= min_age THEN
+        RETURN 'Возраст подходит.';
+    ELSE
+        RETURN 'Пользователь слишком молод.';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
 
-- **`WHILE`**: Итерация по каждому месяцу за последний год.
-- **`RETURN QUERY`**: Добавляет строку к возвращаемому результату в каждой итерации.
+### 1. **Объявление функции**
 
-Если есть вопросы по отдельным частям синтаксиса, дайте знать!
+```sql
+CREATE OR REPLACE FUNCTION check_user_age(birth_date DATE, min_age INT DEFAULT 18)
+    RETURNS TEXT AS
+$$
+```
+
+- **`CREATE OR REPLACE FUNCTION`**: Создает новую функцию или заменяет существующую с тем же именем.
+- **`RETURNS TEXT`**: Функция возвращает строку (тип данных `TEXT`).
+- **`birth_date DATE`**: Параметр типа `DATE`, который указывает дату рождения пользователя.
+- **`min_age INT DEFAULT 18`**: Параметр типа `INT` с значением по умолчанию 18 — минимальный возраст пользователя.
+
+---
+
+### 2. **Блок объявления переменных**
+
+```sql
+DECLARE
+    age INT;
+```
+
+- **`DECLARE`**: Объявление локальной переменной `age` типа `INT`, которая будет использоваться для вычисления возраста.
+
+---
+
+### 3. **Основной блок**
+
+```sql
+BEGIN
+    age := DATE_PART('year', AGE(CURRENT_DATE, birth_date));
+    IF age >= min_age THEN
+        RETURN 'Возраст подходит.';
+    ELSE
+        RETURN 'Пользователь слишком молод.';
+    END IF;
+END;
+```
+
+- **`AGE(CURRENT_DATE, birth_date)`**: Функция `AGE` вычисляет разницу между текущей датой и датой рождения пользователя.
+- **`DATE_PART('year', ...)`**: Извлекает количество полных лет из вычисленной разницы.
+- **`IF ... ELSE`**: Условная логика для проверки, соответствует ли возраст минимальному значению.
+
+---
+
+## III. Проверка формата электронной почты
+
+```sql
+CREATE OR REPLACE FUNCTION check_email_format(email TEXT)
+    RETURNS TEXT AS
+$$
+BEGIN
+    IF email ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
+        RETURN 'Электронная почта корректна.';
+    ELSE
+        RETURN 'Электронная почта некорректна.';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 1. **Объявление функции**
+
+```sql
+CREATE OR REPLACE FUNCTION check_email_format(email TEXT)
+    RETURNS TEXT AS
+$$
+```
+
+- **`CREATE OR REPLACE FUNCTION`**: Создает или заменяет функцию.
+- **`RETURNS TEXT`**: Указывает, что функция возвращает строку (тип данных `TEXT`).
+- **`email TEXT`**: Параметр функции типа `TEXT`, который принимает адрес электронной почты.
+
+---
+
+### 2. **Основной блок**
+
+```sql
+BEGIN
+    IF email ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
+        RETURN 'Электронная почта корректна.';
+    ELSE
+        RETURN 'Электронная почта некорректна.';
+    END IF;
+END;
+```
+
+- **`email ~ '...'`**: Оператор `~` используется для проверки строки с помощью регулярного выражения. В данном случае проверяется, соответствует ли адрес электронной почты стандартному формату.
+- **`IF ... ELSE`**: Условие, проверяющее, прошел ли адрес почты проверку на соответствие регулярному выражению.
+- **`RETURN`**: Возвращает строку с результатом проверки.
+
+---
+
+### Ключевые особенности синтаксиса:
+
+1. **`CREATE OR REPLACE FUNCTION`**: Создание или замена функции в базе данных.
+2. **`RETURNS`**: Указывает тип данных, который функция будет возвращать.
+3. **`DECLARE`**: Блок для объявления локальных переменных, которые будут использоваться в теле функции.
+4. **`BEGIN ... END;`**: Основной блок выполнения, где размещается логика функции.
+5. **`IF ... ELSE`**: Условные операторы для принятия решений в зависимости от проверок.
+6. **Регулярные выражения**: Используются для проверки строк, таких как пароли или адреса электронной почты.
+
+--- 
+
+Если нужно объяснение по какой-либо части синтаксиса, не стесняйтесь спрашивать!

@@ -53,6 +53,7 @@ CREATE TABLE video_likes
     user_id  INT     NOT NULL,
     video_id INT     NOT NULL,
     is_like  BOOLEAN NOT NULL,
+    created_at     TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (video_id) REFERENCES videos (video_id)
 );

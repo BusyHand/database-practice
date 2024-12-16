@@ -42,35 +42,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
-
---II. Проверка возраста пользователя
-CREATE OR REPLACE FUNCTION check_user_age(birth_date DATE, min_age INT DEFAULT 18)
-    RETURNS TEXT AS
+--II. добавиться все теги к одному видео
+CREATE OR REPLACE FUNCTION add_tags_to_video(
+    input_video_id INT,
+    input_tags TEXT[]
+)
+    RETURNS BOOLEAN AS
 $$
 DECLARE
-    age INT;
+    tag TEXT;
 BEGIN
-    age := DATE_PART('year', AGE(CURRENT_DATE, birth_date));
-    IF age >= min_age THEN
-        RETURN 'Возраст подходит.';
-    ELSE
-        RETURN 'Пользователь слишком молод.';
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-
-
---III. Проверка формата электронной почты
-CREATE OR REPLACE FUNCTION check_email_format(email TEXT)
-    RETURNS TEXT AS
-$$
-BEGIN
-    IF email ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
-        RETURN 'Электронная почта корректна.';
-    ELSE
-        RETURN 'Электронная почта некорректна.';
-    END IF;
+    FOREACH tag IN ARRAY input_tags
+        LOOP
+            INSERT INTO tags (name, video_id)
+            VALUES (tag, input_video_id);
+        END LOOP;
+    return true;
 END;
 $$ LANGUAGE plpgsql;

@@ -1,0 +1,15 @@
+DROP TABLE jinchuriki;
+DROP TABLE weapon_ninja;
+DROP TABLE duels;
+DROP TABLE artifact;
+DROP TABLE weapon;
+DROP TABLE tailed_beast;
+DROP TABLE missions;
+DROP TABLE jutsu_list;
+DROP TABLE places;
+DROP TABLE ninjas;
+DROP TABLE organisations;
+DROP TABLE teams;
+DROP TABLE clans;
+DROP TABLE arch;
+DROP TABLE village;

@@ -1,3 +1,9 @@
+DROP VIEW IF EXISTS view_ninjas_clans;
+DROP VIEW IF EXISTS view_missions_status;
+DROP VIEW IF EXISTS view_teams_participants;
+DROP VIEW IF EXISTS view_duels_results;
+DROP VIEW IF EXISTS view_artifacts_archs;
+
 DROP TABLE jinchuriki;
 DROP TABLE weapon_ninja;
 DROP TABLE duels;

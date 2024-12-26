@@ -19,6 +19,8 @@ SET participants_count = participants_count + 1
 WHERE name = 'Team 7';
 
 -- 5. Увеличить мощность Куремы на 100
+-- Может не сработать если до вызова была изменена в alter_table.sql
+
 UPDATE tailed_beast
 SET power = power + 100
 WHERE bigio = 'Kurama';
